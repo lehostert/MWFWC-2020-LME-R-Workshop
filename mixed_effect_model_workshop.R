@@ -18,12 +18,13 @@ library(lme4)
 library(ggplot2)
 library(dpyr)
 library(tidyr)
-ACMaster2<-na.omit(ACMaster) #remove rows with missing values
+ACMaster2 <- na.omit(ACMaster) #remove rows with missing values
 
 #Let's start with linear model evaluation for temperature, current, gear
 basic.lm <- lm(cpue ~ temp + current + factor(gear), data = ACMaster2)
 
 summary(basic.lm)
+
 drop1(basic.lm,test="F")#F = F test, no from normal distribution making p values relevant
 
 step(basic.lm) #AIC comparison of model
@@ -50,22 +51,25 @@ boxplot(E0 ~ ffstation,
 abline(h = 0, lty = 2)
 
 #Let's check out some of the continuous explanatory variables
-ggplot(ACMaster2, aes(x = temp, y = cpue, colour = ffstation))+
-  geom_point(size = 2)+
-  theme_classic()+
-  theme(legend.position = "none")
-ggplot(ACMaster2, aes(x = current, y = cpue, colour = ffstation))+
-  geom_point(size = 2)+
-  theme_classic()+
-  theme(legend.position = "none")
-ggplot(ACMaster2, aes(x = temp, y = cpue, colour = fyear))+
-  geom_point(size = 2)+
-  theme_classic()+
-  theme(legend.position = "none")
-ggplot(ACMaster2, aes(x = current, y = cpue, colour = fyear))+
-  geom_point(size = 2)+
-  theme_classic()+
-  theme(legend.position = "none")
+ggplot(ACMaster2, aes(x = temp, y = cpue, colour = ffstation)) +
+  geom_point(size = 2) +
+  theme_classic() +
+  labs(title="Temp_v_CPUE", fill = "Field Station")
+
+ggplot(ACMaster2, aes(x = current, y = cpue, colour = ffstation)) +
+  geom_point(size = 2) +
+  theme_classic() +
+  labs(title="Current_v_CPUE", fill = "Field Station")
+
+ggplot(ACMaster2, aes(x = temp, y = cpue, colour = fyear)) +
+  geom_point(size = 2) +
+  theme_classic() +
+  labs(title="Temp_v_CPUE", fill ="Year")
+
+ggplot(ACMaster2, aes(x = current, y = cpue, colour = fyear)) +
+  geom_point(size = 2) +
+  theme_classic() +
+  labs(title="Current_v_CPUE", fill = "Year")
 
 plot.design(cpue~ffstation+fyear+stratum, data=ACMaster) #design plot
 
