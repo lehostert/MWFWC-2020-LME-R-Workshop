@@ -20,6 +20,7 @@ library(dpyr)
 library(tidyr)
 ACMaster2 <- na.omit(ACMaster) #remove rows with missing values
 
+#### Linear Models ####
 #Let's start with linear model evaluation for temperature, current, gear
 basic.lm <- lm(cpue ~ temp + current + factor(gear), data = ACMaster2)
 
@@ -104,21 +105,29 @@ ftable(ffstation + stratum ~ fyear, data=ACMaster2)
 
 #Next option - mixed effects model
 
+#### Mixed Effects Models ####
 #Let's run mixed effect model controlling for variation in cpue due to 
 #differences in year (1|fyear) and differences in reach (1|ffstation)
-buffmm <- lmer(cpue ~ temp + current + factor(gear)+
-                 (1|fyear)+(1|ffstation), data = ACMaster2)
+## TODO: I don't think you need to put "factor()" before gear every time in the model check this the class(ACMaster2$gear) is factor
+buffmm <- lme4::lmer(cpue ~ temp + current + factor(gear)+
+                 (1|fyear)+(1|ffstation), data = ACMaster2, REML = F)
 summary(buffmm)
 #uh oh, no p values, what do we do?  
 #We have a couple of options
 #1.run model comparison, excluding variables and comparing models
+## Use REML = False to compare models, >2.0 is significant
 buffmmA <- lmer(cpue ~ current + factor(gear)+
-                 (1|fyear)+(1|ffstation), data = ACMaster2) #removes temp
+                 (1|fyear)+(1|ffstation), data = ACMaster2, REML = F) #removes temp
+# Use update function to remove each factor piece wise 
 buffmmB <- update(buffmmA, .~. - current)
 buffmmC <- update(buffmmA, .~. - factor(gear))
+# Use ANOVA to test whether temperature is significant in the model
 anova(buffmm,buffmmA)
 anova(buffmm,buffmmB)
 anova(buffmm,buffmmC)
+
+### TODO: Why are you testing the original model with each model removing a factor piece wise?
+### why not put temp back in then remove current  then put current back in and remove gear, etc. ?
 
 #or can use lmerTest (will automatically incorporate into summary after
 #running package)
@@ -139,7 +148,8 @@ buffmm1<-lmer(cpue~temp + current + factor(gear)+
 
 summary(buffmm1)
 (fixef(buffmm1))
-(se.fixef(buffmm1))#returns fixed effect standard error
+library(arm)
+(se.fixef(buffmm1)) #returns fixed effect standard error
 confint(buffmm1)
 
 #which is a better model?
@@ -156,7 +166,8 @@ ggplot(ACMaster2, aes(x = temp, y = cpue, colour = stratum)) +
   geom_point() +
   theme_classic() +
   geom_line(data = cbind(ACMaster2, pred = predict(buffmm1)), aes(y = pred)) +
-  theme(legend.position = "none")
+  theme(legend.position = "none") +
+  labs(title="Temp_v_CPUE", fill = "Stratum")
 
 #current
 ggplot(ACMaster2, aes(x = current, y = cpue, colour = stratum)) +
@@ -181,6 +192,7 @@ plot(buffmm1, which = 1:4) # check model residuals
 
 #IF trouble converging, you can standardize your covariates (mean 0, sd 1)
 #using scale
+#### GLM Generalized Linear Models ####
 ACMaster2$temp2 <- scale(ACMaster2$temp)
 ACMaster2$current2 <- scale(ACMaster2$current)
 
@@ -189,6 +201,7 @@ buffmm2<-glmer(cpue~temp2 + current2 + factor(gear)+
                data = ACMaster2, family = poisson)
 #overdispersion observed may lend itself to negative binomial distribution
 #Mass is used for negative binomial with lme4
+
 library(MASS)
 
 buffmm2nb<-glmer.nb(cpue~temp + current + factor(gear)+
