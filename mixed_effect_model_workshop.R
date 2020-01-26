@@ -13,11 +13,12 @@ ACMaster$ffstation<-factor(ACMaster$fstation)
 
 #summary(ACMaster)
 
+library(tidyverse)
 library(lattice)
 library(lme4)
 library(ggplot2)
-library(dpyr)
-library(tidyr)
+# library(dplyr)
+# library(tidyr)
 ACMaster2 <- na.omit(ACMaster) #remove rows with missing values
 
 #### Linear Models ####
@@ -218,13 +219,15 @@ Overdispersion
 
 #Can also model GAMM using nlme (General additive mixed modeling)
 
+#### Repeated Measures ####
 #Another example that adds dependency to model is repeated measures!
 #I made up fish movement data (let's just say bowfin because they are cool)
 #fishmovement.csv
-move<-read.csv(file.choose(),na.strings=".")
+# move <- readr::read_csv()
+move <- read.csv(file.choose(),na.strings=".")
 str(move)
-move$fID<-factor(move$ID)
-move$Day<-factor(move$Day)
+move$fID <- factor(move$ID)
+move$Day <- factor(move$Day)
 #Since the same fish is measured 25 times, we need to account for 
 #that dependenceny
 #What about day?
@@ -244,10 +247,10 @@ ggplot(move, aes(x = Watertemp, y = distance_km, colour = fID)) +
   theme_classic() +
   theme(legend.position = "none")
 #doesn't look like a linear relationship, but let's test anyway
-model2<-lmer(distance_km~Watertemp + (1|fID), data=move)
+model2<-lmer(distance_km ~ Watertemp +(1|fID), data=move)
 summary(model2)
 #let's verify with model comparison and remove temp
-model2A<-lmer(distance_km~1 + (1|fID), data=move)
+model2A<-lmer(distance_km ~ 1 + (1|fID), data=move)
 anova(model2,model2A)
 model3<-lmer(distance_km~Watertemp + (1|fID) + (1|Day), data=move)
 #does adding day as random effect help?
@@ -258,24 +261,83 @@ anova(model2,model3)
 #relationship, but should be explored further with GAMM (there 
 #appears to be a pattern, but not linear)
 
-
+#### Larval Fish Example ####
 #Larval fish example
 #larvalfish.csv
+library(tidyr)
+library(readr)
+# larval <- readr::read_csv(~/)
 larval<-read.csv(file.choose(),na.strings=".")
 str(larval)
 larval$Pool<-as.factor(larval$Pool)
 larval$Hatch_Month<-factor(larval$Hatch_Month)
 larval$SiteType<-factor(larval$SiteType)
 
+library(tidyverse)
 #model for each family - we're interested in centrarchids and cyprinids
-centrarchidae<-filter(larval, Family=="Centrarchidae")
-cyprinidae<-filter(larval, Family=="Cyprinidae")
+centrarchidae <- larval %>%  filter(Family == "Centrarchidae")
+centrarchidae <- filter(larval, Family == "Centrarchidae")
+cyprinidae <- filter(larval, Family == "Cyprinidae")
 #How does temperature, site type, and river stage predict 
 #centrarchid and cyprinid larval growth
 
 #please work in groups to build model, and compare different random models
+# Work with Cyprinidae
+# cypr_model_tidy <-  cyprinidae %>%  lmer(Growth_Rate ~ Temperature + SiteType + Stage + (1|Hatch_Date) + (1|Pool))
+cypr_model <- lmer(Growth_Rate ~ Temperature + SiteType + Stage + (1|Hatch_Month) + (1|Pool), data = cyprinidae)
+summary(cypr_model)
+cypr_model_B <- lmer(Growth_Rate ~ Temperature + SiteType + Stage + (1|Hatch_Month), data = cyprinidae)
+cypr_model_C <- lmer(Growth_Rate ~ Temperature + SiteType + Stage + (1|Pool), data = cyprinidae)
+
+anova(cypr_model,cypr_model_B)
+anova(cypr_model,cypr_model_C)
 
 
+# cent_model_tidy <-  centrarchidae %>%  lmer(Growth_Rate ~ Temperature + SiteType + Stage + (1|Hatch_Date) + (1|Pool))
+cent_model <- lmer(Growth_Rate ~ Temperature + SiteType + Stage + (1|Hatch_Month) + (1|Pool), data = centrarchidae)
+summary(cent_model)
+cent_model_B <- lmer(Growth_Rate ~ Temperature + SiteType + Stage + (1|Hatch_Month), data = centrarchidae)
+cent_model_C <- lmer(Growth_Rate ~ Temperature + SiteType + Stage + (1|Pool), data = centrarchidae)
+anova(cent_model,cent_model_B)
+anova(cent_model,cent_model_C)
+anova(cent_model_C,cent_model_B)
+
+# aLternative
+# use step function to look at all the models and AIC scores at once.
+
+#### AIC w/ Mike Dreslik ####
+library(AICmodavg)
+### Seems similar to prog glm from Pano dat set
+ cent.mods <- list()
+ cent.mods[[1]] <- glmer()
+ cent.mods[[2]] <- glmer()
+ cent_modnames <- list("name1", "name2")
+ cent.mod_results <- aictab(cand.set = cent.mods, modnames = modnames = cent_modnames, )
+ library(AICcmodavg)
+ 
+ Cand.centmodels <- list ()
+ Cand.centmodels[[1]] <- glmer(Growth_RateSc~TemperatureSc +SiteType + StageSc + (1|Date) + (1|Pool), data=centrarchidae)
+ Cand.centmodels[[2]] <- glmer(Growth_RateSc~TemperatureSc +SiteType + StageSc + (1|Date), data=centrarchidae)
+ Cand.centmodels[[3]] <- glmer(Growth_RateSc~TemperatureSc +SiteType + StageSc + (1|Pool), data=centrarchidae)
+ Cand.centmodels[[4]] <- glmer(Growth_RateSc~TemperatureSc +SiteType + (1|Date), data=centrarchidae)
+ Cand.centmodels[[5]] <- glmer(Growth_RateSc~TemperatureSc + StageSc + (1|Date), data=centrarchidae)
+ Cand.centmodels[[6]] <- glmer(Growth_RateSc~SiteType + StageSc + (1|Date), data=centrarchidae)
+ Cand.centmodels[[7]] <- glmer(Growth_RateSc~SiteType + (1|Date), data=centrarchidae)
+ Cand.centmodels[[8]] <- glmer(Growth_RateSc~StageSc + (1|Date), data=centrarchidae)
+ Cand.centmodels[[9]] <- glmer(Growth_RateSc ~ (1|Date), data=centrarchidae)
+ 
+ Modnames <- c("Global", "Cent1A", "Cent1B", "Cent2A", "Cent2B", "Cent2C", "Cent3A", "Cent3B", "Null")
+ 
+ CentAICTable <- aictab(cand.set = Cand.centmodels, modnames = Modnames)
+ 
+ ### Use effects package to predict and get confidence intervals ###  
+ library(effects)
+ summary(Cand.centmodels[[7]])
+ Site.pred <- Cand.centmodels[[7]] %>% effect("SiteType", mod = .) %>% data.frame(.)
+ 
+library(effects)
+ 
+#### Bird Models ####
 #Last group excercise:  Ebird data (from morning group)
 #ebirdsurvey-jtl.csv
 bird<-read.csv(file.choose(),na.strings=".")
